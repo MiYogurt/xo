@@ -1,11 +1,14 @@
+import './render.dart';
+import 'ployfill.dart';
+import 'dart:html';
 
 class RouteMatch {
-  Map<String, String>query;
-  Map<String, String>params;
+  Map<String, String> query;
+  Map<String, String> params;
   String path;
   RouteMeta meta;
 
-  empty(){
+  empty() {
     query = {};
     params = {};
     path = '';
@@ -13,8 +16,7 @@ class RouteMatch {
   }
 }
 
-
-typedef void RouterCallback(RouteMatch match);
+typedef void RouterCallback(RouteMatch match, [Map meta]);
 
 class RouteMeta {
   String path;
@@ -25,22 +27,23 @@ class RouteMeta {
     pathToRegExp(path);
   }
 
-  pathToRegExp(String path){
-    var regular = path.replaceAllMapped(RegExp(r"\:(\w*)"), (m){
+  pathToRegExp(String path) {
+    var regular = path.replaceAllMapped(RegExp(r"\:(\w*)"), (m) {
       // replace (:param)
       this.params.add(m.group(0));
       return "(\\w*)";
-    })..replaceAllMapped(RegExp(r"\/$"), (m){
-      // replace end / is option
-      return "\/?\$";
-    });
+    })
+      ..replaceAllMapped(RegExp(r"\/$"), (m) {
+        // replace end / is option
+        return "\/?\$";
+      });
 
     matcher = RegExp("${regular}");
   }
 
-  exec(String uri, RouteMatch match){
+  exec(String uri, RouteMatch match) {
     List<String> lists;
-    matcher.allMatches(uri).forEach((m){
+    matcher.allMatches(uri).forEach((m) {
       var iter = List.generate(m.groupCount, (i) => (i + 1));
       lists = m.groups(iter);
     });
@@ -61,7 +64,10 @@ class Router {
 
   Router({Map<String, RouterCallback> config}) {
     if (config != null) {
-      this.config = config.map((k, v) => MapEntry(k, RouteMeta(path: k, callback: v))).values.toList();
+      this.config = config
+          .map((k, v) => MapEntry(k, RouteMeta(path: k, callback: v)))
+          .values
+          .toList();
     }
   }
 
@@ -76,46 +82,134 @@ class Router {
     return this;
   }
 
-  void exec(String path){ 
+  void exec(String path, [Map meta]) {
     for (var item in config) {
       var matcher = item.exec(path, this.matcher);
       if (matcher != null) {
-        item.callback(matcher);
+        item.callback(matcher, meta);
         return matcher;
       }
     }
   }
 }
 
-main(List<String> args) {
-  // var path = "/user/:id/:good";
+Map<String, Router> routers = {};
 
-  var route = Router();
-  route.add('/user', (match) {
-    print(match.path);
-    print("enter user");
-  })..add('/user/:id/:type', (match) {
-    print(match.params);
-  });
+var initd = false;
 
-  route.exec("/user/");
-  
-  // var npath = path.replaceAllMapped(RegExp(r"\:(\w*)"), (m){
-  //   print(m.group(1));
-  //   // print(m.group(2));
-  //   // print(m.pattern);
-  //   // print(m.input);
-  //   // print(m.start);
-  //   // print(m.end);
-  //   // print(m);
-  //   return "(\\w*)";
-  // });
-  // print(npath);
-  // var patch = RegExp("${npath}");
-  // var m = patch.allMatches('/user/123/add');
-  // m.toList().forEach((m) {
-  //   print(m.group(1));
-  //   print(m.group(2));
-  // });
+typedef Component BuildComponent(RouteMatch m);
 
+class RouterContainer extends Component {
+  Map<String, BuildComponent> routeMap;
+  Router r;
+  String name;
+  String tagName;
+  String defaultPath;
+  Component active;
+  Map props;
+  RouteMatch match;
+  RouterContainer(this.routeMap,
+      {this.props = const {},
+      this.tagName = 'div',
+      this.defaultPath,
+      this.name = "default"}) {
+    r = Router();
+    routers.addAll({name: r});
+    this.routeMap.forEach((key, value) {
+      if (key == defaultPath) {
+        active = value(RouteMatch());
+      }
+      r.add(key, (_match, [Map meta]) {
+        if (meta == null || meta['replace'] == false) {
+          window.history.pushState({"path": _match.path}, null, _match.path);
+        } else {
+          window.history.replaceState({"path": _match.path}, null, _match.path);
+        }
+        active = value(_match);
+        match = _match;
+        update();
+      });
+    });
+    // r.exec(window.location.pathname, {"replace": true});
+
+    if (!initd) {
+      window.addEventListener('popstate', (_) {
+        routers.forEach((path, router) {
+          router.exec(window.location.pathname);
+        });
+      }, false);
+      initd = true;
+    }
+  }
+
+  update() {
+    setState((_) {});
+  }
+
+  Component build() {
+    return createElement(tagName: this.tagName, props: this.props, childrens: [active]);
+  }
+}
+
+class Link extends Component {
+  String to;
+  String tagName;
+  String routeName;
+  dynamic child;
+  Map<String, dynamic> props = {};
+  Link(this.to,
+      {this.tagName = "a",
+      this.routeName = "default",
+      Map<String, dynamic> props,
+      dynamic child}) {
+    if (props != null && props.isNotEmpty) {
+      this.props = props;
+    }
+    this.props['href'] = to;
+    Map events = this.props['no'];
+    if (events != null) {
+      if (events['click'] == null) {
+        events['click'] = _linkTo;
+      } else {
+        var _userClick = events['click'];
+        events['click'] = (Event e) {
+          _userClick(e);
+          _linkTo(e);
+        };
+      }
+    } else {
+      this.props['on'] = {"click": _linkTo};
+      ;
+    }
+
+    if (child != null) {
+      this.child = child;
+    } else {
+      this.child = to;
+    }
+  }
+
+  _linkTo(Event e) {
+    e.preventDefault();
+    e.stopPropagation();
+    linkTo(to, routeName: routeName);
+  }
+
+  @override
+  Component<Map, BaseState> build() {
+    return createElement(
+        tagName: this.tagName, props: this.props, childrens: [this.child]);
+  }
+}
+
+void linkTo(String path, {String routeName, bool replace = false}) {
+  if (routeName.isEmpty) {
+    routers['default'].exec(path, {"replace": replace});
+  } else {
+    var router = routers[routeName];
+    if (router == null) {
+      print('not founed $routeName');
+    }
+    router.exec(path, {"replace": replace});
+  }
 }

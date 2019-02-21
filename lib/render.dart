@@ -1,12 +1,14 @@
-import './ployfill.dart';
-import 'dart:convert';
-import 'dart:js';
+import 'ployfill.dart';
+import 'debug.dart';
 import 'dart:html';
 import 'dart:async';
 
 num  globalId = 0; 
 
 Map<num, Function> updatedHooks = {};
+
+// update queue
+List<Component> needUpdateComponents = [];
 
 class BaseContext<P> {
   Element el;
@@ -32,8 +34,28 @@ abstract class BaseState {
 }
 
 Component createElement<P extends Map>({String tagName, P props, List childrens}) {
-  var context = BaseContext<Map>(tagName: tagName, props: props, childrens: childrens);
+  var context = BaseContext<P>(tagName: tagName, props: props, childrens: childrens);
   return  Component.replaceContext(context);
+}
+
+void syncElementtoParent(Component component, Element old_el, Element new_el) {
+  if (component.context.el == old_el) {
+    component.context.el = new_el;
+    if (component.node.parent !=null) {
+      syncElementtoParent(component.node.parent, old_el, new_el);
+    }
+  }
+}
+
+void setChildrenEl(Component c, Element el) {
+  if (c.context.el != null) {
+    c.context.el = el;
+    return;
+  } else {
+    if (c.context.childrens[0] != null) {
+      setChildrenEl(c.context.childrens[0], el);
+    }
+  }
 }
 
 Element findChildrenEl(Component component) {
@@ -48,10 +70,12 @@ Element findChildrenEl(Component component) {
   return findChildrenEl(child);
 }
 
+
 class Component<P extends Map<dynamic, dynamic>, S extends BaseState>{
   S state;
   VNode node;
   bool needUpdate = false;
+  bool isContainer = false;
   BaseContext<P> context = BaseContext(tagName: null, props: null, childrens: null); 
 
   Component build() {
@@ -60,6 +84,7 @@ class Component<P extends Map<dynamic, dynamic>, S extends BaseState>{
 
   Component.replaceContext(this.context) {
     this.context = context;
+    isContainer = true;
     this.node = VNode(this.context, this);
   }
 
@@ -70,7 +95,7 @@ class Component<P extends Map<dynamic, dynamic>, S extends BaseState>{
   setState(fn(S state1), [VoidCallback finished]) {
     fn(this.state);
     needUpdate = true;
-    rerender(this, findChildrenEl(this));
+    rerender(this);
     if (finished != null) {
       finished();
     }
@@ -82,13 +107,13 @@ class Component<P extends Map<dynamic, dynamic>, S extends BaseState>{
       "tagName": this.context.tagName,
       "props": this.context.props,
       "children": this.context.childrens,
-      "state": this.state
     };
   }
 
   @override
   String toString() {
-    return this.toJSON().toString();
+    // return toJSON().toString();
+    return stingifyComponent(this);
   }
 }
 
@@ -133,45 +158,57 @@ Element render(VNode n) {
 
 bool hasRenderNextTick = false;
 
-void rerender(Component conponent, Element el){
+void rerender(Component component){
+  print(needUpdateComponents.length);
   if (hasRenderNextTick) {
+    needUpdateComponents.add(component);
     return;
   }
   hasRenderNextTick = true;
   Future.microtask((){
-    update(conponent.node, el);
+    update(component.node);
+  }).then((_){
+    if (needUpdateComponents.isNotEmpty) {
+      var next_component = needUpdateComponents.first;
+      needUpdateComponents = needUpdateComponents.sublist(1);
+      rerender(next_component);
+    }
     hasRenderNextTick = false;
   });
 }
 
-void update(VNode node, Element dom){
+void update(VNode node){
   var c = node.context;
-
-  // rebuild
-  if (c.tagName == null && node.component.needUpdate == true) {
-    var component = updateComputeTree(node.component);
+  var dom = findChildrenEl(node.component);
+  // rebuild class
+  if (node.component.isContainer == false && node.component.needUpdate == true) {
+    var component = computeTree(node.component);
     var el = render(component.node);
     dom.replaceWith(el);
     dom.remove();
-    node.context.el = el;
+    if (c.el == null) {
+      // set the children component
+      setChildrenEl(component, el);
+    } else {
+      c.el = el;
+    }
     node.component.needUpdate = false;
-    c.childrens = [component];
     return;
+  } else {
+    // class
+    if (c.tagName == null) {
+      update(c.childrens[0].node);
+      return;
+    }
   }
 
-  // class
-  if (c.tagName == null) {
-    update(c.childrens[0].node, c.childrens[0].context.el);
-    return;
-  }
-
-  // children
-  if (node.component.needUpdate == false && c.childrens!= null && c.childrens.isNotEmpty) {
+  // container children
+  if (node.component.needUpdate == false && node.component.isContainer) {
     c.childrens.forEach((c){
       // update children
       if (c is Component) {
         if (c.needUpdate) {
-          update(c.node, c.context.el);
+          update(c.node);
         }
       }
     });
@@ -179,58 +216,17 @@ void update(VNode node, Element dom){
   }
 }
 
-dynamic updateComputeTree(Component n) {
-  var c = n.context;
-
-  // setup props
-  if (c.props != null && c.props.isNotEmpty) {
-    c.props.forEach((key, value) {
-    });
-  }
-
-  // class component
-  var children = n.build();
-  if (children is Component) {
-    children.node.parent = n;
-    var component = computeTree(children);
-    if (n != component) {
-      n.context.childrens = [component];
-    }
-  } else {
-    c.childrens = [children];
-  }
-
-  // createElement
-  if (c.childrens != null && c.childrens.isNotEmpty) {
-    c.childrens = c.childrens.map((c) {
-      if (c is Component) {
-        c.node.parent = n;
-        return updateComputeTree(c);
-      } else {
-        return c;
-      }
-    }).toList();
-  }
-
-  return n;
-}
-
 dynamic computeTree(Component n){
   var c = n.context;
-  // setup props
-  if (c.props != null && c.props.isNotEmpty) {
-    c.props.forEach((key, value) {
-    });
-  }
 
   // createElement
-  if (c.childrens != null && c.childrens.isNotEmpty) {
-    c.childrens = c.childrens.map((c) {
-      if (c is Component) {
-        c.node.parent = n;
-        return computeTree(c);
+  if (n.isContainer) {
+    c.childrens = c.childrens.map((child) {
+      if (child is Component) {
+        child.node.parent = n;
+        return computeTree(child);
       } else {
-        return c;
+        return child;
       }
     }).toList();
   } else {
@@ -238,10 +234,8 @@ dynamic computeTree(Component n){
     var children = n.build();
     if (children is Component) {
       children.node.parent = n;
-      var component = computeTree(children);
-      if (n != component) {
-        n.context.childrens = [component];
-      }
+      computeTree(children);
+      n.context.childrens = [children];
     } else {
       c.childrens = [children];
     }
