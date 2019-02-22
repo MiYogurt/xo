@@ -130,7 +130,7 @@ class RouterContainer extends Component {
         update();
       });
     });
-    // r.exec(window.location.pathname, {"replace": true});
+    r.exec(window.location.pathname, {"replace": true});
 
     if (!initd) {
       window.addEventListener('popstate', (_) {

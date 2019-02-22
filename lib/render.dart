@@ -34,7 +34,7 @@ abstract class BaseState {
 }
 
 Component createElement<P extends Map>({String tagName, P props, List childrens}) {
-  var context = BaseContext<P>(tagName: tagName, props: props, childrens: childrens);
+  var context = BaseContext<P>(tagName: tagName, props: props ?? {}, childrens: childrens ?? []);
   return  Component.replaceContext(context);
 }
 
@@ -59,7 +59,7 @@ void setChildrenEl(Component c, Element el) {
 }
 
 Element findChildrenEl(Component component) {
-  if (component.context.childrens.isEmpty) {
+  if (component.context.childrens == null || component.context.childrens.isEmpty) {
     return null;
   }
   var child = component.context.childrens[0];
@@ -90,6 +90,16 @@ class Component<P extends Map<dynamic, dynamic>, S extends BaseState>{
 
   Component(){
     this.node = VNode(this.context, this);
+  }
+
+  static findParentWhere(Component component, bool condition(Component)) {
+    if (condition(component)) {
+      return component;
+    }
+    if (component.node.parent != null) {
+      return findParentWhere(component.node.parent,condition);
+    }
+    return null;
   }
 
   setState(fn(S state1), [VoidCallback finished]) {
@@ -159,14 +169,19 @@ Element render(VNode n) {
 bool hasRenderNextTick = false;
 
 void rerender(Component component){
-  print(needUpdateComponents.length);
+  // print(needUpdateComponents.length);
   if (hasRenderNextTick) {
-    needUpdateComponents.add(component);
+    // needUpdateComponents.add(component);
     return;
   }
   hasRenderNextTick = true;
   Future.microtask((){
-    update(component.node);
+    // update(component.node);
+    // print(component);
+    computeTree(g_vdom);
+    var el = render(g_vdom.node);
+    app.replaceWith(el);
+    app = el;
   }).then((_){
     if (needUpdateComponents.isNotEmpty) {
       var next_component = needUpdateComponents.first;
@@ -192,6 +207,7 @@ void update(VNode node){
     } else {
       c.el = el;
     }
+    syncElementtoParent(component, dom, el);
     node.component.needUpdate = false;
     return;
   } else {
