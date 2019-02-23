@@ -36,6 +36,8 @@ class Hello extends Component<Null, Null> {
   }
 }
 
+var Title = (String text) => h(tagName: 'h1', childrens: [text]);
+
 class PageA extends Component<Null, Null> {
   @override
   Component build() {
@@ -43,7 +45,7 @@ class PageA extends Component<Null, Null> {
     return h(
         tagName: "div",
         props: {},
-        childrens: ["i am page A", link_b, Link("/store/1")]);
+        childrens: [Title("i am page A"), link_b, Link("/store/1")]);
   }
 }
 
@@ -53,7 +55,7 @@ class PageB extends Component<Null, Null> {
     return h(
         tagName: "div",
         props: {},
-        childrens: ["i am page B", Link('/page_a'), Link("/store/2")]);
+        childrens: [Title("i am page B"), Link('/page_a'), Link("/store/2")]);
   }
 }
 
@@ -75,29 +77,6 @@ GlobalState reducer(GlobalState state, Action action) {
   return state;
 }
 
-class GetAppName extends Component {
-  String app_name;
-  Function _update;
-
-  update(Event e) {
-    _update();
-  }
-
-  Component build() {
-    var updateBtn = h(tagName: 'p', props: {
-      "on": {"click": this.update}
-    }, childrens: [
-      app_name
-    ]);
-    return h(tagName: 'p', childrens: [updateBtn, Link("/page_a")]);
-  }
-}
-
-Map<String, dynamic> mapProps(GlobalState state) {
-  return {'app_name': state.app_name};
-}
-
-Store g_store = createStore();
 
 class StorePage extends Component {
   String id;
@@ -120,13 +99,13 @@ class StorePage extends Component {
       return h(tagName: 'div', props: {
         "on": {"click": changeName}
       }, childrens: [
-        this.id,
-        app_name,
+        Title("the params is : ${this.id}"),
+        Title("AppName is (Click me change global state) : $app_name"),
         link_to
       ]);
     });
 
-    var wrap = h(tagName: 'div', props: {}, childrens: [this.id, connected]);
+    var wrap = h(tagName: 'div', props: {}, childrens: ["i am connected global state", connected]);
     return wrap;
   }
 }
@@ -174,8 +153,8 @@ class App extends Component<Null, AppState> {
         childrens: childrens);
 
     var Div = h(tagName: 'div', props: {}, childrens: [
-      buildClickCompoent(this.onClick, [Kakao(state.name)]),
-      routerView
+      routerView,
+      buildClickCompoent(this.onClick, [Kakao(state.name), 'click Me to change local state'])
     ]);
 
     return Div;
@@ -183,8 +162,9 @@ class App extends Component<Null, AppState> {
 }
 
 void main() {
-  g_store.registerModule(reducer, initState: GlobalState('init'));
+  Store store = createStore();
+  store.registerModule(reducer, initState: GlobalState('default app name'));
   var app = App();
-  var Static = h(tagName: 'div', props: {}, childrens: ["nochange", app]);
-  mount(Static, '#app');
+  var static_node = h(tagName: 'div', props: {}, childrens: ["Xo App", app]);
+  mount(static_node, '#app');
 }
