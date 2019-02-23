@@ -1,5 +1,4 @@
 import './render.dart';
-import 'ployfill.dart';
 import 'dart:html';
 
 class RouteMatch {
@@ -30,7 +29,7 @@ class RouteMeta {
   pathToRegExp(String path) {
     var regular = path.replaceAllMapped(RegExp(r"\:(\w*)"), (m) {
       // replace (:param)
-      this.params.add(m.group(0));
+      this.params.add(m.group(1));
       return "(\\w*)";
     })
       ..replaceAllMapped(RegExp(r"\/$"), (m) {
@@ -103,15 +102,11 @@ class RouterContainer extends Component {
   Map<String, BuildComponent> routeMap;
   Router r;
   String name;
-  String tagName;
   String defaultPath;
   Component active;
-  Map props;
   RouteMatch match;
   RouterContainer(this.routeMap,
-      {this.props = const {},
-      this.tagName = 'div',
-      this.defaultPath,
+      {this.defaultPath,
       this.name = "default"}) {
     r = Router();
     routers.addAll({name: r});
@@ -147,7 +142,7 @@ class RouterContainer extends Component {
   }
 
   Component build() {
-    return createElement(tagName: this.tagName, props: this.props, childrens: [active]);
+    return active;
   }
 }
 
@@ -197,7 +192,7 @@ class Link extends Component {
 
   @override
   Component<Map, BaseState> build() {
-    return createElement(
+    return h(
         tagName: this.tagName, props: this.props, childrens: [this.child]);
   }
 }

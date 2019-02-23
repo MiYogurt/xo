@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 
 part 'store_link.dart';
 
-var store;
+Store store;
 
 typedef StoreState Reducer<StoreState, Action>(StoreState state, Action action);
 typedef void CallBack(String name);

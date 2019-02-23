@@ -30,7 +30,7 @@ class Hello extends Component<Null, Null> {
   String children;
   Hello(this.children);
   Component build() {
-    return createElement(tagName: 'p', props: { "style": "color: red;" }, childrens: ["hello ", this.children]);
+    return h(tagName: 'p', props: { "style": "color: red;" }, childrens: ["hello ", this.children]);
   }
 }
 
@@ -38,13 +38,13 @@ class PageA extends Component<Null, Null> {
   @override
   Component build() {
      var link_b = Link('/page_b', child: 'like to b');
-    return createElement(tagName: "div", props: {}, childrens: ["i am page A", link_b]);
+    return h(tagName: "div", props: {}, childrens: ["i am page A", link_b, Link("/store/1")]);
   }
 }
 class PageB extends Component<Null, Null> {
   @override
   Component build() {
-    return createElement(tagName: "div", props: {}, childrens: ["i am page B", Link('/page_a')]);
+    return h(tagName: "div", props: {}, childrens: ["i am page B", Link('/page_a') , Link("/store/2")]);
   }
 }
 
@@ -76,8 +76,8 @@ class GetAppName extends Component {
   }
 
   Component build() {
-    var updateBtn =createElement(tagName: 'p', props: { "on": { "click": this.update }}, childrens: [app_name]);
-    return createElement(tagName: 'p',childrens: [updateBtn, Link("/page_a")]);
+    var updateBtn = h(tagName: 'p', props: { "on": { "click": this.update }}, childrens: [app_name]);
+    return h(tagName: 'p',childrens: [updateBtn, Link("/page_a")]);
   }
 }
 
@@ -88,6 +88,36 @@ Map<String, dynamic> mapProps(GlobalState state) {
 }
 
 Store g_store = createStore();
+
+
+class StorePage extends Component {
+  String id;
+  StorePage(this.id);
+  Storage(){
+  }
+  changeName(Event e, Store store){
+    print(this);
+    store.dispatch(ChangeName());
+  }
+  Component build() {
+
+  var connected = Connect(build: (Store store) {
+      var app_name = store.getState<GlobalState>().app_name;
+      var link_to = Link('/page_a');
+
+      void changeName(e){
+        store.dispatch(ChangeName());
+      }
+
+      return h(tagName: 'div', props: { "on": { "click": changeName } }, childrens: [this.id, app_name, link_to]);
+  });
+
+    var wrap = h(tagName: 'div', props: {} , childrens: [this.id, connected]);
+    return wrap;
+  }
+}
+
+// var Div4 = h(tagName: 'div', props: {}, childrens: ["test", wrap]);
 
 class App extends Component<Null, AppState> {
   AppState state = AppState();
@@ -114,27 +144,19 @@ class App extends Component<Null, AppState> {
     });
   }
   Component build() {
-    var Div = createElement(tagName: 'div', props: { "style": "background: #359;", "on": { 'click': this.onClick } }, childrens: [Kakao(state.name), Link('/store')]);
-    var Div3 = createElement(tagName: 'div', props: { "style": "color: #333;" }, childrens: [Link('/page_b'), 'to_page_b']);
-    var Div2 =
-        createElement(tagName: 'div', props: {}, childrens: [Div ,"good boy2", Div3]);
-
-    var wrap = Connect(build: (store){
-        // debug(store);
-        var c = GetAppName();
-        var g_state = store.getState<GlobalState>();
-        c.app_name = g_state.app_name;
-        c._update = (){
-          store.dispatch(ChangeName());
-        };
-        return c;
-    });
+    // var Div = h(tagName: 'div', props: { "style": "background: #359;", "on": { 'click': this.onClick } }, childrens: [Kakao(state.name), Link('/store/2')]);
+    // var Div3 = h(tagName: 'div', props: { "style": "color: #333;" }, childrens: [Link('/page_b'), 'to_page_b']);
+    // var Div2 =
+    //     h(tagName: 'div', props: {}, childrens: [Div ,"good boy2", Div3]);
+    // print('app build');
 
     var routerView = RouterContainer({
-      '/page_a': (_) => Div2,
+      '/page_a': (_) => PageA(),
       '/page_b': (_) => PageB(),
-      '/store': (_) => wrap
-    }, defaultPath: '/store');
+      '/store/:id': (match){
+        return StorePage(match.params['id']);
+      }
+    }, defaultPath: '/page_a');
 
     return routerView;
   }
@@ -143,7 +165,7 @@ class App extends Component<Null, AppState> {
 void main() {
   g_store.registerModule(reducer, initState: GlobalState('init'));
   var app = App();
-  var Static = createElement(tagName: 'div', props: {}, childrens: ["nochange", app]);
+  var Static = h(tagName: 'div', props: {}, childrens: ["nochange", app]);
   mount(Static, '#app');
 
 }

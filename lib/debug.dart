@@ -53,5 +53,5 @@ String stringifyList(List list) {
 
 String stingifyComponent(Component c){
   String childrenString = stringifyList(c.context.childrens);
-  return "{\"id\": ${c.node.id},\"props\": ${stringifyMap(c.context.props)},\"tagName\": \"${c.context.tagName ?? '' }\",\"childrens\": ${childrenString}}";
+  return "{\"props\": ${stringifyMap(c.context.props)},\"tagName\": \"${c.context.tagName ?? '' }\",\"childrens\": ${childrenString}}";
 }
