@@ -136,6 +136,47 @@ void rerender(Component component){
   });
 }
 
+BaseContext findContainerChild(BaseContext c) {
+  if (c.tagName == null) {
+    return findContainerChild(c.childrens.first);
+  }
+  return c;
+}
+
+
+BaseContext resolveBuild(VNode node) {
+  var component = node.component;
+  if (component.isContainer) {
+    node.context.childrens = node.context.childrens.map((child){
+      if (child is String) {
+        return child;
+      } else if (child is Component) {
+        var childNode = resolveBuild(child.node);
+        return findContainerChild(childNode);
+      }
+      return child;
+    }).toList();
+    return node.context;
+  }
+  var firstChild = resolveBuild(component.build().node);
+  component.context.childrens = [findContainerChild(firstChild)];
+  return node.context;
+}
+
+// BaseContext trimComponentNode(BaseContext ctx){
+//   ctx.childrens = ctx.childrens.map((child_ctx){
+//     if (child_ctx is String) {
+//       return child_ctx;
+//     }6
+//     if (child_ctx.tagName == null) {
+//       child_ctx = findContainerChild(child_ctx.childrens.first);
+//     }
+//     child_ctx = trimComponentNode(child_ctx);
+//     return child_ctx; 
+//   }).toList();
+//   return ctx;
+// }
+
 dynamic computeTree(Component n){
   var c = n.context;
   // createElement
