@@ -27,7 +27,11 @@ abstract class BaseState {
   BaseState();
 }
 
-Component h<P extends Map>({String tagName, P props, List childrens}) {
+Component h<P extends Map>([String tagName, dynamic props, List childrens]) {
+  if (props is List) {
+    childrens = props;
+    props = {};
+  }
   var context = BaseContext<P>(tagName: tagName, props: props ?? {}, childrens: childrens ?? []);
   return  Component.replaceContext(context);
 }

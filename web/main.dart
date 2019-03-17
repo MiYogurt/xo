@@ -4,6 +4,7 @@ import 'package:xo/store.dart';
 
 import 'dart:html';
 import 'dart:math';
+import 'dart:async';
 
 var rng = new Random();
 
@@ -29,23 +30,18 @@ class Hello extends Component<Null, Null> {
   String children;
   Hello(this.children);
   Component build() {
-    return h(
-        tagName: 'p',
-        props: {"style": "color: red;"},
-        childrens: ["hello ", this.children]);
+    return h( 'p',{"style": "color: red;"}, ["hello ", this.children]);
   }
 }
 
-var Title = (String text) => h(tagName: 'h1', childrens: [text]);
+var Title = (String text) => h('h1', [text]);
 
 class PageA extends Component<Null, Null> {
   @override
   Component build() {
     var link_b = Link('/page_b', child: 'like to b');
     return h(
-        tagName: "div",
-        props: {},
-        childrens: [Title("i am page A"), link_b, Link("/store/1")]);
+         "div", [Title("i am page A"), link_b, Link("/store/1")]);
   }
 }
 
@@ -53,9 +49,8 @@ class PageB extends Component<Null, Null> {
   @override
   Component build() {
     return h(
-        tagName: "div",
-        props: {},
-        childrens: [Title("i am page B"), Link('/page_a'), Link("/store/2")]);
+        "div",
+       [Title("i am page B"), Link('/page_a'), Link("/store/2")]);
   }
 }
 
@@ -96,16 +91,16 @@ class StorePage extends Component {
         store.dispatch(ChangeName());
       }
 
-      return h(tagName: 'div', props: {
+      return h('div', {
         "on": {"click": changeName}
-      }, childrens: [
+      }, [
         Title("the params is : ${this.id}"),
         Title("AppName is (Click me change global state) : $app_name"),
         link_to
       ]);
     });
 
-    var wrap = h(tagName: 'div', props: {}, childrens: ["i am connected global state", connected]);
+    var wrap = h( 'div', ["i am connected global state", connected]);
     return wrap;
   }
 }
@@ -145,14 +140,14 @@ class App extends Component<Null, AppState> {
     }, defaultPath: '/page_a');
 
     var buildClickCompoent = (Function click, childrens) => h(
-        tagName: 'div',
-        props: {
+        'div',
+        {
           "style": "background: ${state.background};",
           "on": {'click': click }
         },
-        childrens: childrens);
+       childrens);
 
-    var Div = h(tagName: 'div', props: {}, childrens: [
+    var Div = h('div', [
       routerView,
       buildClickCompoent(this.onClick, [Kakao(state.name), 'click Me to change local state'])
     ]);
@@ -166,6 +161,6 @@ void main() {
   Store store = createStore();
   store.registerModule(reducer, initState: GlobalState('default app name'));
   var app = App();
-  var static_node = h(tagName: 'div', props: {}, childrens: ["Xo App", app]);
+  var static_node = h( 'div', ["Xo App", app]);
   mount(static_node, '#app');
 }

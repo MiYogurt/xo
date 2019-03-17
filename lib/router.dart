@@ -193,7 +193,7 @@ class Link extends Component {
   @override
   Component<Map, BaseState> build() {
     return h(
-        tagName: this.tagName, props: this.props, childrens: [this.child]);
+         this.tagName, this.props, [this.child]);
   }
 }
 
