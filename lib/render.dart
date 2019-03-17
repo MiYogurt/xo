@@ -9,6 +9,11 @@ class BaseContext<P> {
   P props;
   List<dynamic> childrens;
   BaseContext({this.tagName, this.props, this.childrens});
+  copy(){
+    var copy_ctx = BaseContext(tagName: this.tagName, props: this.props, childrens: this.childrens);
+    copy_ctx.el = el;
+    return copy_ctx;
+  }
 }
 
 class VNode<P, S> {
@@ -17,7 +22,6 @@ class VNode<P, S> {
   Component parent;
   VNode(this.context, this.component);
 }
-
 
 abstract class BaseState {
   BaseState();
@@ -80,23 +84,16 @@ class Component<P extends Map<dynamic, dynamic>, S extends BaseState>{
   }
 }
 
-
-Element render(VNode n) {
-  var c = n.context;
-  // container
-  if (c.tagName == null) {
-    Component first = c.childrens[0];
-    return render(first.node);
-  }
-  var dom = document.createElement(c.tagName);
-  c.el = dom;
+Element render(BaseContext ctx) {
+  var dom = document.createElement(ctx.tagName);
+  ctx.el = dom;
   // setup props
-  Map<String, Function>events = c.props['on'] ?? {};
+  Map<String, Function>events = ctx.props['on'] ?? {};
   if (events.isNotEmpty) {
     events.forEach((key, value) => dom.addEventListener('${key.toLowerCase()}', value));
   }
-  if (c.props != null && c.props.isNotEmpty) {
-    c.props.forEach((key, value) {
+  if (ctx.props != null && ctx.props.isNotEmpty) {
+    ctx.props.forEach((key, value) {
       if (key is String) {
         if(key.startsWith('on')) {
           return;
@@ -106,10 +103,10 @@ Element render(VNode n) {
     });
   }
   // setup children
-  if (c.childrens!= null && c.childrens.isNotEmpty) {
-    var doms = c.childrens.map((c) {
-      if (c is Component) {
-        return render(c.node);
+  if (ctx.childrens!= null && ctx.childrens.isNotEmpty) {
+    var doms = ctx.childrens.map((c) {
+      if (c is BaseContext) {
+        return render(c);
       } else {
         return createTextNode(c);
       }
@@ -121,16 +118,65 @@ Element render(VNode n) {
 
 bool hasRenderNextTick = false;
 
+void patch(Node parent, dynamic element, dynamic oldNode, dynamic node) {
+  if (oldNode is String && node is String && oldNode != node && element is Text) {
+    element.replaceWith(Text(node));
+  }
+
+  if ((oldNode is Node || oldNode == null) && node is String) {
+    var newEl = document.createElement(node);
+    parent.insertBefore(newEl, element);
+    element.remove();
+    element = newEl;
+  }
+
+  if ((oldNode is String || oldNode == null) && node is BaseContext) {
+    var newEl = render(node);
+    parent.insertBefore(newEl, element);
+    element.remove();
+    element = newEl;
+  } 
+
+  if (oldNode is BaseContext && node is BaseContext) {
+    if (node.props !=null) {
+      (node.props as Map).forEach((key,value){
+        if (key is String) {
+          if(key.startsWith('on')) {
+            return;
+          }
+        }
+        node.el.setAttribute(key, value);
+      });
+    }
+    // 处理子节点
+    List oldElements = element.childNodes;
+    List oldChildren = oldNode.childrens;
+    List children = node.childrens;
+    var k = 0;
+    while (k < node.childrens.length) {
+      var oldNode = null;
+      if (k < oldChildren.length - 1) {
+        oldNode = oldChildren[k];
+      }
+      patch(element, oldElements[k], oldNode, children[k]);
+      k++;
+    }
+  }
+  
+}
+
 void rerender(Component component){
   if (hasRenderNextTick) {
     return;
   }
   hasRenderNextTick = true;
   Future.microtask((){
-    computeTree(root);
-    var el = render(root.node);
-    app.replaceWith(el);
-    app = el;
+    var ctx = resolveBuild(root.node);
+    patch(app, app.firstChild, root.context, ctx);
+    // var el = render(ctx);
+    // app.replaceWith(el);
+    // app = el;
+    root.context = ctx;
   }).then((_){
     hasRenderNextTick = false;
   });
@@ -147,7 +193,8 @@ BaseContext findContainerChild(BaseContext c) {
 BaseContext resolveBuild(VNode node) {
   var component = node.component;
   if (component.isContainer) {
-    node.context.childrens = node.context.childrens.map((child){
+    var ctx = node.context.copy();
+    ctx.childrens = node.context.childrens.map((child){
       if (child is String) {
         return child;
       } else if (child is Component) {
@@ -156,51 +203,12 @@ BaseContext resolveBuild(VNode node) {
       }
       return child;
     }).toList();
-    return node.context;
+    return ctx;
   }
   var firstChild = resolveBuild(component.build().node);
-  component.context.childrens = [findContainerChild(firstChild)];
-  return node.context;
-}
-
-// BaseContext trimComponentNode(BaseContext ctx){
-//   ctx.childrens = ctx.childrens.map((child_ctx){
-//     if (child_ctx is String) {
-//       return child_ctx;
-//     }6
-//     if (child_ctx.tagName == null) {
-//       child_ctx = findContainerChild(child_ctx.childrens.first);
-//     }
-//     child_ctx = trimComponentNode(child_ctx);
-//     return child_ctx; 
-//   }).toList();
-//   return ctx;
-// }
-
-dynamic computeTree(Component n){
-  var c = n.context;
-  // createElement
-  if (n.isContainer) {
-    c.childrens = c.childrens.map((child) {
-      if (child is Component) {
-        child.node.parent = n;
-        return computeTree(child);
-      } else {
-        return child;
-      }
-    }).toList();
-  } else {
-    // class component
-    var children = n.build();
-    if (children is Component) {
-      children.node.parent = n;
-      computeTree(children);
-      n.context.childrens = [children];
-    } else {
-      c.childrens = [children];
-    }
-  }
-  return n;
+  var ctx = component.context.copy();
+  ctx.childrens = [findContainerChild(firstChild)];
+  return ctx;
 }
 
 Element app;
@@ -215,7 +223,7 @@ void mount([Component _root, String id]) {
   if (app == null) {
     throw Exception("not found $id");
   }
-  var tree = computeTree(root);
-  var dom = render(tree.node);
+  var ctx = resolveBuild(root.node);
+  var dom = render(ctx);
   app.children.add(dom);
 }
