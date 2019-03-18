@@ -1,19 +1,21 @@
 name: xo
-description: An absolute bare-bones web app.
-# version: 1.0.0
-#homepage: https://www.example.com
-#author: ChenMingMing <email@example.com>
+description: mini web framework
+version: 1.0.0
+homepage: https://github.com/MiYogurt/xo
+author: ChenMingMing <belovedyogurt@gmail.com>
+
+
+publish_to: https://pub.dartlang.org/
 
 environment:
   sdk: '>=2.0.0 <3.0.0'
 
 dependencies:
   js: ^0.6.0
-  build: ^1.1.1
-  uuid: 2.0.0
-  build_config: ^0.3.1
-#  path: ^1.4.1
-
+  meta: ^1.1.7
+  
 dev_dependencies:
+  build: ^1.1.1
+  build_config: ^0.3.1
   build_runner: ^1.2.4
   build_web_compilers: ^1.1.0
