@@ -177,7 +177,7 @@ void rerender(Component component){
   hasRenderNextTick = true;
   Future.microtask((){
     var ctx = resolveBuild(root.node);
-    patch(app, app.firstChild, root.context, ctx);
+    patch(app, app, root.context, ctx);
     root.context = ctx;
   }).then((_){
     hasRenderNextTick = false;
@@ -214,7 +214,7 @@ Element app;
 Component root;
 
 void mount([Component _root, String id]) {
-  root = _root;
+  root = h('div', [_root]);
   root.context.el = app;
   if (app == null) {
     app = querySelector(id);
