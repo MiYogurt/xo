@@ -92,10 +92,6 @@ Element render(BaseContext ctx) {
   var dom = document.createElement(ctx.tagName);
   ctx.el = dom;
   // setup props
-  Map<String, Function>events = ctx.props['on'] ?? {};
-  if (events.isNotEmpty) {
-    events.forEach((key, value) => dom.addEventListener('${key.toLowerCase()}', value));
-  }
   if (ctx.props != null && ctx.props.isNotEmpty) {
     ctx.props.forEach((key, value) {
       if (key is String) {
@@ -105,6 +101,11 @@ Element render(BaseContext ctx) {
       }
       dom.setAttribute(key, value);
     });
+
+    Map<String, Function>events = ctx.props['on'] ?? {};
+    if (events.isNotEmpty) {
+      events.forEach((key, value) => dom.addEventListener('${key.toLowerCase()}', value));
+    }
   }
   // setup children
   if (ctx.childrens!= null && ctx.childrens.isNotEmpty) {
