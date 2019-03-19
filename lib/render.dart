@@ -210,10 +210,7 @@ BaseContext resolveBuild(VNode node) {
     }).toList();
     return ctx;
   }
-  var firstChild = resolveBuild(component.build().node);
-  var ctx = component.context.copy();
-  ctx.childrens = [findContainerChild(firstChild)];
-  return ctx;
+  return resolveBuild(component.build().node).copy();
 }
 
 Element app;
