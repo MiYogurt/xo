@@ -178,9 +178,6 @@ void rerender(Component component){
   Future.microtask((){
     var ctx = resolveBuild(root.node);
     patch(app, app.firstChild, root.context, ctx);
-    // var el = render(ctx);
-    // app.replaceWith(el);
-    // app = el;
     root.context = ctx;
   }).then((_){
     hasRenderNextTick = false;

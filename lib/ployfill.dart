@@ -6,7 +6,7 @@ import 'dart:html';
 
 @JS('document.createTextNode')
 @anonymous
-external Element createTextNode(String text);
+external Element createTextNode(dynamic text);
 
 @JS('console.log')
 @anonymous
